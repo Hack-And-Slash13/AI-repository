@@ -15,8 +15,9 @@ app.use(express.static('../frontend'));
 const conversationHistory = new Map();
 
 /**
- * GitHub Copilot Chat API Integration
- * This endpoint handles chat requests and forwards them to GitHub Copilot
+ * GitHub Models API Integration
+ * This endpoint handles chat requests and forwards them to GitHub Models
+ * Uses Azure AI for various models: GPT-4o, Llama, Mistral, etc.
  */
 app.post('/api/chat', async (req, res) => {
     try {
@@ -36,24 +37,24 @@ app.post('/api/chat', async (req, res) => {
             content: message
         });
 
-        // OpenAI API call
-        // Get your API key from: https://platform.openai.com/api-keys
+        // GitHub Models API call (Free for development)
+        // Get your token from: https://github.com/settings/tokens (select 'Models' scope)
         const messages = history.map(msg => ({
             role: msg.role,
             content: msg.content
         }));
         
         const response = await axios.post(
-            'https://api.openai.com/v1/chat/completions',
+            'https://models.inference.ai.azure.com/chat/completions',
             {
                 messages: messages,
-                model: 'gpt-3.5-turbo',
+                model: 'gpt-4o-mini', // Options: gpt-4o, gpt-4o-mini, llama-3.1-70b-instruct, mistral-large
                 temperature: 0.7,
                 max_tokens: 500
             },
             {
                 headers: {
-                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                    'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
                     'Content-Type': 'application/json'
                 },
                 timeout: 30000
@@ -80,12 +81,12 @@ app.post('/api/chat', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error calling GitHub Copilot API:', error.response?.data || error.message);
+        console.error('Error calling GitHub Models API:', error.response?.data || error.message);
         
         // Handle specific error cases
         if (error.response?.status === 401) {
             return res.status(401).json({ 
-                error: 'Invalid OpenAI API key. Please check your OPENAI_API_KEY in .env file.' 
+                error: 'Invalid GitHub token. Please check your GITHUB_TOKEN in .env file.' 
             });
         }
         
@@ -137,8 +138,8 @@ function generateSessionId() {
 // Start server
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📝 Make sure OPENAI_API_KEY is set in your .env file`);
-    console.log(`🔗 Get API key at: https://platform.openai.com/api-keys`);
+    console.log(`📝 Make sure GITHUB_TOKEN is set in your .env file`);
+    console.log(`🔗 Get token at: https://github.com/settings/tokens (enable 'Models' scope)`);
 });
 
 // Cleanup old conversations every hour

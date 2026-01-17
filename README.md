@@ -1,14 +1,14 @@
 # AI (Awsome Inteligence)
 
-Welcome! I have been wanting to do this project for a while. We are going to call it "Hope AI" - a conversational AI assistant built to provide intelligent, context-aware responses and interactions, powered by **GitHub Copilot API**.
+Welcome! I have been wanting to do this project for a while. We are going to call it "Hope AI" - a conversational AI assistant built to provide intelligent, context-aware responses and interactions, powered by **GitHub Models API**.
 
 ## Overview
 
-This project implements a modern chat-based AI system with a beautiful web interface and robust backend. The AI leverages GitHub Copilot's advanced language models to deliver helpful, accurate, and engaging conversations in real-time. More updates and features will be added later, but right now we are making a simple AI chatbot.
+This project implements a modern chat-based AI system with a beautiful web interface and robust backend. The AI leverages GitHub Models (including GPT-4o, Llama 3.1, and Mistral) to deliver helpful, accurate, and engaging conversations in real-time. More updates and features will be added later, but right now we are making a simple AI chatbot.
 
 ## ✨ Features
 
-- **GitHub Copilot Integration**: Powered by GitHub's advanced AI models
+- **GitHub Models Integration**: Powered by multiple AI models (GPT-4o, Llama 3.1, Mistral)
 - **Modern Web Interface**: Clean, responsive design that works on all devices
 - **Real-time Chat**: Fast and fluid conversation experience
 - **Context-Aware**: Maintains conversation history for relevant responses
@@ -23,8 +23,8 @@ This project implements a modern chat-based AI system with a beautiful web inter
 
 - **Node.js** (v14 or higher)
 - **npm** package manager
-- **GitHub Account** with Copilot access
-- **GitHub Personal Access Token** with `copilot` scope
+- **GitHub Account**
+- **GitHub Personal Access Token** with `Models` scope
 
 ### Installation
 
