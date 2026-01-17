@@ -1,5 +1,9 @@
 {
   "name": "chat-ai-backend",
+  "scripts": {
+    "start": "node your-main-file.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
   "version": "1.0.0",
   "description": "Backend server for Chat AI with GitHub Copilot integration",
   "main": "server.js",
