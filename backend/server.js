@@ -36,29 +36,30 @@ app.post('/api/chat', async (req, res) => {
             content: message
         });
 
-        // Hugging Face API call (Free AI model)
-        // Get free API key from: https://huggingface.co/settings/tokens
-        const prompt = history.map(msg => `${msg.role}: ${msg.content}`).join('\n') + '\nassistant:';
+        // GitHub API call using GitHub Models
+        // Get free API key from: https://github.com/settings/tokens
+        const messages = history.map(msg => ({
+            role: msg.role,
+            content: msg.content
+        }));
         
         const response = await axios.post(
-            'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2',
+            'https://models.inference.ai.azure.com/chat/completions',
             {
-                inputs: prompt,
-                parameters: {
-                    max_new_tokens: 500,
-                    temperature: 0.7,
-                    return_full_text: false
-                }
+                messages: messages,
+                model: 'gpt-4o-mini',
+                temperature: 0.7,
+                max_tokens: 500
             },
             {
                 headers: {
-                    'Authorization': `Bearer ${process.env.HUGGINGFACE_TOKEN}`,
+                    'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
                     'Content-Type': 'application/json'
                 }
             }
         );
 
-        const aiMessage = response.data[0].generated_text.trim();
+        const aiMessage = response.data.choices[0].message.content.trim();
 
         // Add AI response to history
         history.push({
@@ -83,7 +84,7 @@ app.post('/api/chat', async (req, res) => {
         // Handle specific error cases
         if (error.response?.status === 401) {
             return res.status(401).json({ 
-                error: 'Invalid Hugging Face token. Please check your HUGGINGFACE_TOKEN in .env file.' 
+                error: 'Invalid GitHub token. Please check your GITHUB_TOKEN in .env file.' 
             });
         }
         
@@ -135,8 +136,8 @@ function generateSessionId() {
 // Start server
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📝 Make sure HUGGINGFACE_TOKEN is set in your .env file`);
-    console.log(`🔗 Get free token at: https://huggingface.co/settings/tokens`);
+    console.log(`📝 Make sure GITHUB_TOKEN is set in your .env file`);
+    console.log(`🔗 Get free token at: https://github.com/settings/tokens`);
 });
 
 // Cleanup old conversations every hour
