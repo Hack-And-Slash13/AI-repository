@@ -1,0 +1,16 @@
+services:
+  # Backend API Service
+  - type: web
+    name: hope-ai
+    runtime: node
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: PORT
+        value: 3000
+    healthCheckPath: /health
