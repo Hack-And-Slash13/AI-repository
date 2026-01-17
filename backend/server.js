@@ -36,26 +36,27 @@ app.post('/api/chat', async (req, res) => {
             content: message
         });
 
-        // GitHub API call using GitHub Models
-        // Get free API key from: https://github.com/settings/tokens
+        // OpenAI API call
+        // Get your API key from: https://platform.openai.com/api-keys
         const messages = history.map(msg => ({
             role: msg.role,
             content: msg.content
         }));
         
         const response = await axios.post(
-            'https://models.inference.ai.azure.com/chat/completions',
+            'https://api.openai.com/v1/chat/completions',
             {
                 messages: messages,
-                model: 'gpt-4o-mini',
+                model: 'gpt-3.5-turbo',
                 temperature: 0.7,
                 max_tokens: 500
             },
             {
                 headers: {
-                    'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                timeout: 30000
             }
         );
 
@@ -84,7 +85,7 @@ app.post('/api/chat', async (req, res) => {
         // Handle specific error cases
         if (error.response?.status === 401) {
             return res.status(401).json({ 
-                error: 'Invalid GitHub token. Please check your GITHUB_TOKEN in .env file.' 
+                error: 'Invalid OpenAI API key. Please check your OPENAI_API_KEY in .env file.' 
             });
         }
         
@@ -136,8 +137,8 @@ function generateSessionId() {
 // Start server
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📝 Make sure GITHUB_TOKEN is set in your .env file`);
-    console.log(`🔗 Get free token at: https://github.com/settings/tokens`);
+    console.log(`📝 Make sure OPENAI_API_KEY is set in your .env file`);
+    console.log(`🔗 Get API key at: https://platform.openai.com/api-keys`);
 });
 
 // Cleanup old conversations every hour
