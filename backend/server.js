@@ -1,17 +1,17 @@
+// server.js
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
 require('dotenv').config();
 
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-
 const app = express();
 const PORT = process.env.PORT || 10000;
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
-// Check for required environment variables at startup
-if (!process.env.GITHUB_TOKEN) {
-    console.warn('⚠️  WARNING: GITHUB_TOKEN is not set! Set it in Render dashboard or .env file.');
+// Warn if GitHub token is missing
+if (!GITHUB_TOKEN) {
+    console.warn('⚠️ WARNING: GITHUB_TOKEN is not set! Set it in Render dashboard or .env file.');
     console.warn('🔗 Get token at: https://github.com/settings/tokens (enable "Models" scope)');
 }
 
@@ -20,14 +20,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// Store conversation history (in production, use a database)
+// Conversation storage
 const conversationHistory = new Map();
 
-/**
- * GitHub Models API Integration
- * This endpoint handles chat requests and forwards them to GitHub Models
- * Uses Azure AI for various models: GPT-4o, Llama, Mistral, etc.
- */
+// Generate unique session IDs
+function generateSessionId() {
+    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+// Chat endpoint
 app.post('/api/chat', async (req, res) => {
     try {
         const { message, conversationId } = req.body;
@@ -36,88 +37,64 @@ app.post('/api/chat', async (req, res) => {
             return res.status(400).json({ error: 'Message is required' });
         }
 
-        // Get or create conversation history
         const sessionId = conversationId || generateSessionId();
         let history = conversationHistory.get(sessionId) || [];
 
-        // Add user message to history
-        history.push({
-            role: 'user',
-            content: message
-        });
+        history.push({ role: 'user', content: message });
 
-        // GitHub Models API call (Free for development)
-        // Get your token from: https://github.com/settings/tokens (select 'Models' scope)
-        const messages = history.map(msg => ({
-            role: msg.role,
-            content: msg.content
-        }));
-        
+        // Prepare messages for AI
+        const messages = history.map(msg => ({ role: msg.role, content: msg.content }));
+
+        if (!GITHUB_TOKEN) {
+            return res.status(500).json({ error: 'GITHUB_TOKEN not set. Cannot call AI API.' });
+        }
+
+        // Call the AI API
         const response = await axios.post(
             'https://models.inference.ai.azure.com/chat/completions',
             {
-                messages: messages,
-                model: 'gpt-4o-mini', // Options: gpt-4o, gpt-4o-mini, llama-3.1-70b-instruct, mistral-large
+                messages,
+                model: 'gpt-4o-mini',
                 temperature: 0.7,
                 max_tokens: 500
             },
             {
                 headers: {
-                    'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+                    'Authorization': `Bearer ${GITHUB_TOKEN}`,
                     'Content-Type': 'application/json'
                 },
                 timeout: 30000
             }
         );
 
-        const aiMessage = response.data.choices[0].message.content.trim();
+        const aiMessage = response.data.choices?.[0]?.message?.content?.trim() || 'No response';
 
-        // Add AI response to history
-        history.push({
-            role: 'assistant',
-            content: aiMessage
-        });
+        history.push({ role: 'assistant', content: aiMessage });
 
-        // Store updated history (limit to last 20 messages)
-        if (history.length > 20) {
-            history = history.slice(-20);
-        }
+        // Keep last 20 messages
+        if (history.length > 20) history = history.slice(-20);
         conversationHistory.set(sessionId, history);
 
-        res.json({
-            message: aiMessage,
-            conversationId: sessionId
-        });
+        res.json({ message: aiMessage, conversationId: sessionId });
 
     } catch (error) {
-        console.error('Error calling GitHub Models API:', error.response?.data || error.message);
-        
-        // Handle specific error cases
+        console.error('Error calling AI API:', error.response?.data || error.message);
+
         if (error.response?.status === 401) {
-            return res.status(401).json({ 
-                error: 'Invalid GitHub token. Please check your GITHUB_TOKEN in .env file.' 
-            });
-        }
-        
-        if (error.response?.status === 429) {
-            return res.status(429).json({ 
-                error: 'Rate limit exceeded. Please try again later.' 
-            });
+            return res.status(401).json({ error: 'Invalid GitHub token.' });
         }
 
-        res.status(500).json({ 
-            error: 'Failed to get response from AI',
-            details: error.message 
-        });
+        if (error.response?.status === 429) {
+            return res.status(429).json({ error: 'Rate limit exceeded.' });
+        }
+
+        res.status(500).json({ error: 'Failed to get response from AI', details: error.message });
     }
 });
 
-/**
- * Clear conversation history
- */
+// Clear conversation
 app.delete('/api/chat/:conversationId', (req, res) => {
     const { conversationId } = req.params;
-    
     if (conversationHistory.has(conversationId)) {
         conversationHistory.delete(conversationId);
         res.json({ message: 'Conversation cleared' });
@@ -126,29 +103,13 @@ app.delete('/api/chat/:conversationId', (req, res) => {
     }
 });
 
-/**
- * Health check endpoint
- */
+// Health check
 app.get('/api/health', (req, res) => {
-    res.json({ 
+    res.json({
         status: 'ok',
         timestamp: new Date().toISOString(),
         activeConversations: conversationHistory.size
     });
-});
-
-/**
- * Generate a unique session ID
- */
-function generateSessionId() {
-    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-
-// Start server
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📝 Make sure GITHUB_TOKEN is set in your .env file`);
-    console.log(`🔗 Get token at: https://github.com/settings/tokens (enable 'Models' scope)`);
 });
 
 // Cleanup old conversations every hour
@@ -156,8 +117,14 @@ setInterval(() => {
     const oneHourAgo = Date.now() - 3600000;
     for (const [sessionId] of conversationHistory) {
         const timestamp = parseInt(sessionId.split('_')[1]);
-        if (timestamp < oneHourAgo) {
-            conversationHistory.delete(sessionId);
-        }
+        if (timestamp < oneHourAgo) conversationHistory.delete(sessionId);
     }
 }, 3600000);
+
+// Start server safely
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📝 GITHUB_TOKEN is ${GITHUB_TOKEN ? 'SET' : 'NOT SET'}`);
+}).on('error', err => {
+    console.error('Server failed to start:', err);
+});
