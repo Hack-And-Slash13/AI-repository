@@ -3,7 +3,7 @@
 // CUSTOMIZATION: Change API endpoint if needed
 // ============================================
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = 'https://ai-awesome-intelligence-fhhn.onrender.com';
 
 // ============================================
 // STATE MANAGEMENT
