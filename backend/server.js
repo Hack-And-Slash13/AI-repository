@@ -4,6 +4,8 @@ const axios = require('axios');
 const path = require('path');
 require('dotenv').config();
 
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
