@@ -2,8 +2,7 @@
 // CONFIGURATION
 // ============================================
 
-// Use same-origin API (works locally + on Render)
-const API_BASE_URL = '';
+const API_BASE_URL = ''; // same-origin API
 
 // ============================================
 // STATE MANAGEMENT
@@ -11,6 +10,7 @@ const API_BASE_URL = '';
 
 let conversationId = null;
 let isWaitingForResponse = false;
+let voiceMode = false;
 
 // ============================================
 // DOM ELEMENTS
@@ -24,6 +24,7 @@ const typingIndicator = document.getElementById('typingIndicator');
 const clearChatBtn = document.getElementById('clearChatBtn');
 const errorToast = document.getElementById('errorToast');
 const errorMessage = document.getElementById('errorMessage');
+const voiceButton = document.getElementById('voice-button');
 
 // ============================================
 // INITIALIZATION
@@ -43,6 +44,7 @@ function initializeEventListeners() {
     messageInput.addEventListener('input', autoResizeTextarea);
     messageInput.addEventListener('keydown', handleKeyDown);
     clearChatBtn.addEventListener('click', handleClearChat);
+    voiceButton.addEventListener('click', toggleVoiceMode);
 
     document.querySelectorAll('.chip').forEach(chip => {
         chip.addEventListener('click', () => {
@@ -54,7 +56,62 @@ function initializeEventListeners() {
 }
 
 // ============================================
-// FORM SUBMISSION HANDLER
+// VOICE MODE
+// ============================================
+
+function toggleVoiceMode() {
+    voiceMode = !voiceMode;
+
+    if (voiceMode) {
+        voiceButton.style.backgroundColor = '#808080';
+        voiceButton.style.color = 'white';
+        listen();
+    } else {
+        voiceButton.style.backgroundColor = '';
+        voiceButton.style.color = '';
+    }
+}
+
+function listen() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+        alert("Your browser does not support the Web Speech API.");
+        return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+        messageInput.placeholder = "Listening...";
+    };
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        messageInput.value = transcript;
+        autoResizeTextarea();
+        messageInput.focus();
+        // Optionally auto-send after speech:
+        // chatForm.dispatchEvent(new Event('submit'));
+    };
+
+    recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        alert("Speech recognition error: " + event.error);
+    };
+
+    recognition.onend = () => {
+        messageInput.placeholder = "Type your message here...";
+    };
+
+    recognition.start();
+}
+
+// ============================================
+// FORM SUBMISSION
 // ============================================
 
 async function handleSubmit(e) {
@@ -65,7 +122,6 @@ async function handleSubmit(e) {
 
     messageInput.value = '';
     messageInput.style.height = 'auto';
-
     document.querySelector('.welcome-section')?.remove();
 
     addMessage(message, 'user');
@@ -87,6 +143,8 @@ async function handleSubmit(e) {
         }
 
         const data = await response.json();
+
+        if (voiceMode) talk(data.message);
 
         conversationId = data.conversationId;
         hideTypingIndicator();
@@ -133,6 +191,11 @@ function addMessage(text, type) {
     chatMessages.appendChild(messageDiv);
 
     scrollToBottom();
+}
+
+function talk(words) {
+    const speech = new SpeechSynthesisUtterance(words);
+    window.speechSynthesis.speak(speech);
 }
 
 // ============================================
