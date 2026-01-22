@@ -1,4 +1,4 @@
-# Chat AI - Setup Guide
+# Awesome Intelligence AI - Setup Guide
 
 ## 🚀 Quick Start
 
@@ -50,7 +50,7 @@ nano .env  # or use your preferred editor
 
 Your `.env` file should look like:
 ```
-GITHUB_TOKEN=ghp_your_actual_token_here
+API_TOKEN=your_token_here
 PORT=3000
 ```
 
@@ -79,12 +79,12 @@ You should see:
 ## 📁 Project Structure
 
 ```
-AI-repository/
+Awesome-Intelligence-AI/
 ├── backend/
 │   ├── server.js          # Main Express server
 │   ├── package.json       # Backend dependencies
-│   ├── .env.example       # Environment variables template
-│   └── .env               # Your actual environment variables (create this)
+│   ├── .env.env           # Environment variables
+|
 ├── frontend/
 │   ├── index.html         # Main HTML file with customization comments
 │   ├── styles.css         # CSS styling with customization options
