@@ -159,6 +159,7 @@ async function handleSubmit(e) {
         sendButton.disabled = false;
         messageInput.focus();
     }
+    if (voiceMode) listen();
 }
 
 // ============================================
