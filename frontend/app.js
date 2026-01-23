@@ -1,3 +1,4 @@
+
 // ============================================
 // CONFIGURATION
 // ============================================
@@ -11,7 +12,6 @@ const API_BASE_URL = ''; // same-origin API
 let conversationId = null;
 let isWaitingForResponse = false;
 let voiceMode = false;
-let image-generation = true;
 
 // ============================================
 // DOM ELEMENTS
@@ -26,7 +26,6 @@ const clearChatBtn = document.getElementById('clearChatBtn');
 const errorToast = document.getElementById('errorToast');
 const errorMessage = document.getElementById('errorMessage');
 const voiceButton = document.getElementById('voice-button');
-const image-button = document.getElementById('image-button');
 
 // ============================================
 // INITIALIZATION
@@ -47,7 +46,6 @@ function initializeEventListeners() {
     messageInput.addEventListener('keydown', handleKeyDown);
     clearChatBtn.addEventListener('click', handleClearChat);
     voiceButton.addEventListener('click', toggleVoiceMode);
-    image-button.addEventListener('click', image);
 
     document.querySelectorAll('.chip').forEach(chip => {
         chip.addEventListener('click', () => {
@@ -61,10 +59,7 @@ function initializeEventListeners() {
 // ============================================
 // VOICE MODE
 // ============================================
-function image() {
-    image-generation = true;
-}
-    
+
 function toggleVoiceMode() {
     voiceMode = !voiceMode;
 
@@ -152,9 +147,7 @@ async function handleSubmit(e) {
         conversationId = data.conversationId;
         hideTypingIndicator();
         addMessage(data.message, 'ai');
-        if (image-generation) {
-            generateImage()
-        }
+
     } catch (error) {
         console.error('Chat error:', error);
         hideTypingIndicator();
@@ -170,22 +163,7 @@ async function handleSubmit(e) {
 // ============================================
 // MESSAGE DISPLAY
 // ============================================
-function generateImage() {
-    const response = await openai.responses.create({
-        model: "gpt-5",
-        input: message,
-        tools: [{type: "image_generation"}],
-    });
-    const imageData = response.output
-      .filter((output) => output.type === "image_generation_call")
-      .map((output) => output.result);
 
-    if (imageData.length > 0) {
-      const imageBase64 = imageData[0];
-      const fs = await import("fs");
-      fs.writeFileSync("otter.png", Buffer.from(imageBase64, "base64"));
-    }
-}
 function addMessage(text, type) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}`;
