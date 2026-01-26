@@ -1,4 +1,4 @@
-// server.cjs
+// server.js
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -8,39 +8,36 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY; // for images
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // Warn if tokens are missing
-if (!GITHUB_TOKEN) {
-    console.warn('⚠️ WARNING: GITHUB_TOKEN is not set! Set it in Render dashboard or .env file.');
-    console.warn('🔗 Get token at: https://github.com/settings/tokens (enable "Models" scope)');
-}
-if (!OPENAI_API_KEY) {
-    console.warn('⚠️ WARNING: OPENAI_API_KEY is not set! Image generation will not work.');
-}
+if (!GITHUB_TOKEN) console.warn('⚠️ GITHUB_TOKEN not set.');
+if (!OPENAI_API_KEY) console.warn('⚠️ OPENAI_API_KEY not set. Image generation will not work.');
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Make sure path points to frontend folder correctly
-app.use(express.static(path.join(__dirname, '../frontend')));
-
-// Conversation storage
-const conversationHistory = new Map();
-
-// Generate unique session IDs
-function generateSessionId() {
-    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
+// ==============================
+// STATIC FILES (frontend)
+// ==============================
+// Adjust this path based on your frontend setup
+// For React: frontend/build
+// For Vanilla JS: frontend
+const frontendPath = path.join(__dirname, '../frontend/build'); 
+app.use(express.static(frontendPath));
 
 // ==============================
 // CHAT ENDPOINT
 // ==============================
+const conversationHistory = new Map();
+function generateSessionId() {
+    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
 app.post('/api/chat', async (req, res) => {
     try {
         const { message, conversationId } = req.body;
-
         if (!message) return res.status(400).json({ error: 'Message is required' });
 
         const sessionId = conversationId || generateSessionId();
@@ -54,10 +51,7 @@ app.post('/api/chat', async (req, res) => {
         const response = await axios.post(
             'https://models.inference.ai.azure.com/chat/completions',
             { messages, model: 'gpt-4o-mini', temperature: 0.7, max_tokens: 500 },
-            {
-                headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
-                timeout: 30000
-            }
+            { headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' }, timeout: 30000 }
         );
 
         const aiMessage = response.data.choices?.[0]?.message?.content?.trim() || 'No response';
@@ -77,13 +71,13 @@ app.post('/api/chat', async (req, res) => {
 });
 
 // ==============================
-// IMAGE GENERATION ENDPOINT
+// IMAGE ENDPOINT
 // ==============================
 app.post('/image/create', async (req, res) => {
     try {
         const { prompt } = req.body;
         if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
-        if (!OPENAI_API_KEY) return res.status(500).json({ error: 'OPENAI_API_KEY not set. Cannot generate images.' });
+        if (!OPENAI_API_KEY) return res.status(500).json({ error: 'OPENAI_API_KEY not set.' });
 
         const response = await axios.post(
             'https://api.openai.com/v1/images/generations',
@@ -95,6 +89,7 @@ app.post('/image/create', async (req, res) => {
         if (!imageUrl) throw new Error('No image returned from OpenAI');
 
         res.json({ imageUrl });
+
     } catch (err) {
         console.error('Image generation error:', err.response?.data || err.message);
         res.status(500).json({ error: 'Failed to generate image', details: err.message });
@@ -118,11 +113,7 @@ app.delete('/api/chat/:conversationId', (req, res) => {
 // HEALTH CHECK
 // ==============================
 app.get('/api/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        activeConversations: conversationHistory.size
-    });
+    res.json({ status: 'ok', timestamp: new Date().toISOString(), activeConversations: conversationHistory.size });
 });
 
 // ==============================
@@ -137,12 +128,17 @@ setInterval(() => {
 }, 3600000);
 
 // ==============================
+// SPA FALLBACK (for React / frontend routing)
+// ==============================
+app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendPath, 'index.html'));
+});
+
+// ==============================
 // START SERVER
 // ==============================
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📝 GITHUB_TOKEN is ${GITHUB_TOKEN ? 'SET' : 'NOT SET'}`);
     console.log(`🖼 OPENAI_API_KEY is ${OPENAI_API_KEY ? 'SET' : 'NOT SET'}`);
-}).on('error', err => {
-    console.error('Server failed to start:', err);
 });
