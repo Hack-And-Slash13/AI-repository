@@ -8,11 +8,15 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY; // new for images
 
-// Warn if GitHub token is missing
+// Warn if tokens are missing
 if (!GITHUB_TOKEN) {
     console.warn('⚠️ WARNING: GITHUB_TOKEN is not set! Set it in Render dashboard or .env file.');
     console.warn('🔗 Get token at: https://github.com/settings/tokens (enable "Models" scope)');
+}
+if (!OPENAI_API_KEY) {
+    console.warn('⚠️ WARNING: OPENAI_API_KEY is not set! Image generation will not work.');
 }
 
 // Middleware
@@ -28,7 +32,9 @@ function generateSessionId() {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// Chat endpoint
+// ==============================
+// CHAT ENDPOINT
+// ==============================
 app.post('/api/chat', async (req, res) => {
     try {
         const { message, conversationId } = req.body;
@@ -42,14 +48,12 @@ app.post('/api/chat', async (req, res) => {
 
         history.push({ role: 'user', content: message });
 
-        // Prepare messages for AI
         const messages = history.map(msg => ({ role: msg.role, content: msg.content }));
 
         if (!GITHUB_TOKEN) {
             return res.status(500).json({ error: 'GITHUB_TOKEN not set. Cannot call AI API.' });
         }
 
-        // Call the AI API
         const response = await axios.post(
             'https://models.inference.ai.azure.com/chat/completions',
             {
@@ -71,7 +75,6 @@ app.post('/api/chat', async (req, res) => {
 
         history.push({ role: 'assistant', content: aiMessage });
 
-        // Keep last 20 messages
         if (history.length > 20) history = history.slice(-20);
         conversationHistory.set(sessionId, history);
 
@@ -83,7 +86,6 @@ app.post('/api/chat', async (req, res) => {
         if (error.response?.status === 401) {
             return res.status(401).json({ error: 'Invalid GitHub token.' });
         }
-
         if (error.response?.status === 429) {
             return res.status(429).json({ error: 'Rate limit exceeded.' });
         }
@@ -92,7 +94,45 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
-// Clear conversation
+// ==============================
+// IMAGE GENERATION ENDPOINT
+// ==============================
+app.post('/image/create', async (req, res) => {
+    try {
+        const { prompt } = req.body;
+
+        if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+        if (!OPENAI_API_KEY) return res.status(500).json({ error: 'OPENAI_API_KEY not set. Cannot generate images.' });
+
+        const response = await axios.post(
+            'https://api.openai.com/v1/images/generations',
+            {
+                prompt,
+                n: 1,
+                size: '1024x1024'
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        const imageUrl = response.data.data?.[0]?.url;
+        if (!imageUrl) throw new Error('No image returned from OpenAI');
+
+        res.json({ imageUrl });
+
+    } catch (err) {
+        console.error('Image generation error:', err.response?.data || err.message);
+        res.status(500).json({ error: 'Failed to generate image', details: err.message });
+    }
+});
+
+// ==============================
+// CLEAR CONVERSATION
+// ==============================
 app.delete('/api/chat/:conversationId', (req, res) => {
     const { conversationId } = req.params;
     if (conversationHistory.has(conversationId)) {
@@ -103,7 +143,9 @@ app.delete('/api/chat/:conversationId', (req, res) => {
     }
 });
 
-// Health check
+// ==============================
+// HEALTH CHECK
+// ==============================
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'ok',
@@ -112,7 +154,9 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Cleanup old conversations every hour
+// ==============================
+// CLEANUP OLD CONVERSATIONS
+// ==============================
 setInterval(() => {
     const oneHourAgo = Date.now() - 3600000;
     for (const [sessionId] of conversationHistory) {
@@ -121,10 +165,13 @@ setInterval(() => {
     }
 }, 3600000);
 
-// Start server safely
+// ==============================
+// START SERVER
+// ==============================
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📝 GITHUB_TOKEN is ${GITHUB_TOKEN ? 'SET' : 'NOT SET'}`);
+    console.log(`🖼 OPENAI_API_KEY is ${OPENAI_API_KEY ? 'SET' : 'NOT SET'}`);
 }).on('error', err => {
     console.error('Server failed to start:', err);
 });
