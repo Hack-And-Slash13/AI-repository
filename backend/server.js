@@ -21,10 +21,7 @@ app.use(express.json());
 // ==============================
 // STATIC FILES (frontend)
 // ==============================
-// Adjust this path based on your frontend setup
-// For React: frontend/build
-// For Vanilla JS: frontend
-const frontendPath = path.join(__dirname, '../frontend/build'); 
+const frontendPath = path.join(__dirname, '../frontend');
 app.use(express.static(frontendPath));
 
 // ==============================
@@ -86,7 +83,7 @@ app.post('/image/create', async (req, res) => {
         );
 
         const imageUrl = response.data.data?.[0]?.url;
-        if (!imageUrl) throw new Error('No image returned from OpenAI');
+        if (!imageUrl) throw new Error('No image returned');
 
         res.json({ imageUrl });
 
@@ -126,13 +123,6 @@ setInterval(() => {
         if (timestamp < oneHourAgo) conversationHistory.delete(sessionId);
     }
 }, 3600000);
-
-// ==============================
-// SPA FALLBACK (for React / frontend routing)
-// ==============================
-app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
-});
 
 // ==============================
 // START SERVER
